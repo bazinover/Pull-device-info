@@ -1,1 +1,23 @@
+#import relevant modules#
+from netmiko import ConnectHandler
 
+#define username and password
+user=str(input("username:"))
+psw=str(input("Password:"))
+
+#define host list file
+netdev=open("/home/alexb/Desktop/netdev.txt")
+
+#loop to define host ip and connect to each host
+for line in netdev:
+    ip_addr=str(line.strip())
+    
+    #connecting to device
+    net_connect=ConnectHandler(device_type='cisco_ios',ip=ip_addr,username=user,password=psw)
+
+    #retrive data from device
+    net_connect.send_command('terminal lengh 0')
+    output=net_connect.send_command('show ip int brief')
+
+#parse the information
+    print (output)
