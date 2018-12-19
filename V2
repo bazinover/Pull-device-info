@@ -1,0 +1,33 @@
+#import relevant modules#
+from netmiko import ConnectHandler
+
+#define username and password
+user=str(input("username:"))
+psw=str(input("Password:"))
+ios='cisco_nxos'
+
+#define file of hosts and file of the output
+netdev=open("/home/alexb/Desktop/netdev.txt")
+transiver=open("/home/alexb/Desktop/transiver.txt","a")
+
+#loop to define host ip and connect to each host
+for line in netdev:
+    ip_addr=str(line.strip())
+    #connecting to device
+    net_connect=ConnectHandler(device_type=ios,ip=ip_addr,username=user,password=psw)
+    print ("Successful connection", ip_addr)
+
+    #retrive data from device
+    net_connect.send_command("terminal lengh 0")
+    output=net_connect.send_command("show int transceiver")
+
+#parse the information 
+    result='/n'+ip_addr
+    for line in output.split('\n'):
+    	if 'Ethernet' in line or 'serial' in line or 'type' in line:
+    		result=result+'\n'+line
+    transiver.write(result)
+
+#finish the script
+transiver.close
+print ("Script is finished to run")
