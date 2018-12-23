@@ -1,0 +1,62 @@
+#import relevant modules#
+from netmiko import ConnectHandler
+import pprint
+import xlsxwriter
+
+#define username and password
+user=str(input("username:"))
+psw=str(input("Password:"))
+ios='cisco_nxos'
+
+#define file of hosts
+netdev=open("/home/alexb/Desktop/netdev.txt")
+
+#define xlsxwriter variables
+workbook = xlsxwriter.Workbook('Nexus Optics.xlsx')
+worksheet = workbook.add_worksheet()
+#define excel colums
+colA=0
+colB=1
+colC=2
+colD=3
+rowB=1
+rowCD=0
+worksheet.write('A1','Device name')
+worksheet.write('B1','Int')
+worksheet.write('C1','Serial')
+worksheet.write('D1','SFP type')
+
+#loop to define host ip and connect to each host
+for line in netdev:
+    ip_addr=str(line.strip())
+    #connecting to device
+    net_connect=ConnectHandler(device_type=ios,ip=ip_addr,username=user,password=psw)
+    print ("Successful connection", ip_addr)
+
+    #retrive data from device
+    net_connect.send_command("terminal lengh 0")
+    output=net_connect.send_command("show int transceiver")
+
+
+#parse the information
+    for line in output.split('\n'):
+    	if 'Ethernet' in line:
+    		worksheet.write(rowB,colB,line)
+    		worksheet.write(rowB,colA,ip_addr)
+    		rowB+=1
+    		rowCD+=1
+    	if 'serial' in line:
+    		worksheet.write(rowCD,colC,str(line.split()[-1]))
+    	if 'type' in line:
+    		if 'Fabric' in line:
+    			worksheet.write(rowCD,colD,'FET')
+    		else:
+    			worksheet.write(rowCD,colD,str(line.split()[-1]))
+
+
+    		
+    	
+
+#finish the script
+workbook.close()
+print ("Script is finished to run")
