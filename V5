@@ -1,0 +1,93 @@
+#import relevant modules#
+from netmiko import ConnectHandler
+import xlsxwriter
+
+#define username and password
+user=str(input('username:'))
+psw=str(input('Password:'))
+ios='cisco_nxos'
+
+#define file of hosts
+netdev=open('/home/alexb/Desktop/netdev.txt')
+
+#define xlsxwriter variables
+workbook = xlsxwriter.Workbook('Nexus Optics.xlsx')
+worksheet = workbook.add_worksheet('Nexus')
+worksheet_fex = workbook.add_worksheet('Fex')
+#define Nexus excel colums
+colA=0
+colB=1
+colC=2
+colD=3
+rowB=1
+rowCD=0
+worksheet.write('A1','Device name')
+worksheet.write('B1','Int')
+worksheet.write('C1','Serial')
+worksheet.write('D1','SFP type')
+# Define fex excel colums
+fcolA=0
+fcolB=1
+fcolC=2
+fcolD=3
+rowup=1
+rowfex=0
+worksheet_fex.write('A1','Device name')
+worksheet_fex.write('B1','Fex ID')
+worksheet_fex.write('C1','Uplink')
+worksheet_fex.write('D1','Serial')
+
+
+#loop to define host ip and connect to each host
+for line in netdev:
+    ip_addr=str(line.strip())
+    #connecting to device
+    net_connect=ConnectHandler(device_type=ios,ip=ip_addr,username=user,password=psw)
+    print ('Successful connection', ip_addr)
+
+    #retrive data from device
+    net_connect.send_command("terminal lengh 0")
+    output=net_connect.send_command("show int transceiver")
+    fex_id=net_connect.send_command("show fex | include Online")
+
+    #retrive all the Fex ids from Nexus
+    fex=[]
+    for line in fex_id.split('\n'):
+        fex.append(line[0:3])
+    #for each Fex ID run show tranceiver 
+    for ID in fex:
+        fexfiber=net_connect.send_command(f'show fex {ID} transceiver')
+
+#Data Parsing for each Fex 
+        for ln in fexfiber.split('\n'):
+            if 'Uplink' in ln:
+                worksheet_fex.write(rowup,fcolC,ln)
+                worksheet_fex.write(rowup,fcolA,ip_addr)
+                worksheet_fex.write(rowup,fcolB,ID)
+                rowup+=1
+                rowfex+=1
+            if 'serial' in ln:
+                worksheet_fex.write(rowfex,fcolD,str(ln.split()[-1]))
+    print('retrived Fex from', ip_addr)
+               
+
+#parse the nexsus information
+    for line in output.split('\n'):
+    	if 'Ethernet' in line:
+    		worksheet.write(rowB,colB,line)
+    		worksheet.write(rowB,colA,ip_addr)
+    		rowB+=1
+    		rowCD+=1
+    	if 'serial' in line:
+    		worksheet.write(rowCD,colC,str(line.split()[-1]))
+    	if 'type' in line:
+    		if 'Fabric' in line:
+    			worksheet.write(rowCD,colD,'FET')
+    		else:
+    			worksheet.write(rowCD,colD,str(line.split()[-1]))
+    print ('Close connection ', ip_addr)
+
+
+#finish the script
+workbook.close()
+print ('Script is finished to run')
