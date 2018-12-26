@@ -1,0 +1,57 @@
+#import relevant modules#
+from netmiko import ConnectHandler
+import xlsxwriter
+
+
+#define username and password
+user=str(input('username:'))
+psw=str(input('Password:'))
+iosxe='cisco_xe'
+ios='cisco_ios'
+#follwing ios types : cisco_ios, cisco_xe, cisco_nxos
+
+#define file of hosts
+netdev=open('/home/alexb/Desktop/iosxe.txt')
+
+#define xlsxwriter variables
+workbook = xlsxwriter.Workbook('Iosxe Optics.xlsx')
+worksheet_iosxe = workbook.add_worksheet('IosXe')
+#define 4506 excel colums
+colA=0
+colB=1
+colC=2
+colD=3
+row=1
+worksheet_iosxe.write('A1','Device name')
+worksheet_iosxe.write('B1','Int')
+worksheet_iosxe.write('C1','SFP type')
+worksheet_iosxe.write('D1','Serial')
+
+#loop to define host ip and connect to each host
+for line in netdev:
+    ip_addr=str(line.strip())
+    #connecting to device
+    net_connect=ConnectHandler(device_type=iosxe,ip=ip_addr,username=user,password=psw)
+    print ('Successful connection', ip_addr)
+
+    #retrive data from device
+    net_connect.send_command("terminal lengh 0")
+    output=net_connect.send_command("show inventory")
+
+    #Parsing the out of the show command
+    for chunk in output.split('\n\n'):
+    	if 'Ethernet' in chunk:
+    		for line in chunk.split(','):
+    			if 'NAME' in line:
+    				worksheet_iosxe.write(row,colB,line.split(':')[1].replace('"',''))
+    			if 'DESCR' in line:
+    				sfp=line.split(':')[1].strip('\nPID')
+    				worksheet_iosxe.write(row,colC,sfp.replace('"',''))
+    			if 'SN' in line:
+    				worksheet_iosxe.write(row,colD,line.split(':')[1])
+    				worksheet_iosxe.write(row,colA,ip_addr)
+    				row+=1
+
+#finish the script
+workbook.close()
+print ('Script is finished to run')
