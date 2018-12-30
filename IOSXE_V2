@@ -1,0 +1,100 @@
+#import relevant modules#
+from netmiko import ConnectHandler
+import xlsxwriter
+
+
+#define username and password
+user=str(input('username:'))
+psw=str(input('Password:'))
+iosxe='cisco_xe'
+ios='cisco_ios'
+#follwing ios types : cisco_ios, cisco_xe, cisco_nxos
+
+#define file of hosts
+iosxe_ip=open('/home/alexb/Desktop/iosxe.txt')
+ios_ip=open('/home/alexb/Desktop/ioslist.txt')
+
+#define xlsxwriter variables
+workbook = xlsxwriter.Workbook('Campus Optics.xlsx')
+worksheet_iosxe = workbook.add_worksheet('IosXe')
+worksheet_ios = workbook.add_worksheet('Ios')
+#define IosXe excel colums
+colA=0
+colB=1
+colC=2
+colD=3
+row=1
+worksheet_iosxe.write('A1','Device name')
+worksheet_iosxe.write('B1','Int')
+worksheet_iosxe.write('C1','SFP type')
+worksheet_iosxe.write('D1','Serial')
+
+#Define IOS excel colums
+col_iosA=0
+col_iosB=1
+col_iosC=2
+col_iosD=3
+row_ios=1
+worksheet_ios.write('A1','Device name')
+worksheet_ios.write('B1','Int')
+worksheet_ios.write('C1','SFP type')
+worksheet_ios.write('D1','Serial')
+
+
+#loop to define host ip and connect to each host
+for line in iosxe_ip:
+    ip_addr=str(line.strip())
+    #connecting to device
+    net_connect=ConnectHandler(device_type=iosxe,ip=ip_addr,username=user,password=psw)
+    print ('Successful connection', ip_addr)
+
+    #retrive data from device
+    net_connect.send_command("terminal lengh 0")
+    output=net_connect.send_command("show inventory")
+
+    #Parsing the out of the show command
+    for chunk in output.split('\n\n'):
+        if 'Ethernet' in chunk:
+            for line in chunk.split(','):
+                if 'NAME' in line:
+                    worksheet_iosxe.write(row,colB,line.split(':')[1].replace('"',''))
+                if 'DESCR' in line:
+                    sfp=line.split(':')[1].strip('\nPID')
+                    worksheet_iosxe.write(row,colC,sfp.replace('"',''))
+                if 'SN' in line:
+                    worksheet_iosxe.write(row,colD,line.split(':')[1])
+                    worksheet_iosxe.write(row,colA,ip_addr)
+                    row+=1
+
+
+
+#loop to define host ip and connect to each host
+for line in ios_ip:
+    ip_addr=str(line.strip())
+    #connecting to device
+    net_connect=ConnectHandler(device_type=ios,ip=ip_addr,username=user,password=psw)
+    print ('Successful connection', ip_addr)
+
+    #retrive data from device
+    net_connect.send_command("terminal lengh 0")
+    ios_output=net_connect.send_command("show inventory")
+
+    #Parsing the out of the show command
+    for chunk in ios_output.split('\n\n'):
+        if 'Ethernet' in chunk:
+            for line in chunk.split(','):
+                if 'NAME' in line:
+                    worksheet_ios.write(row_ios,col_iosB,line.split(':')[1].replace('"',''))
+                if 'DESCR' in line:
+                    sfp=line.split(':')[1].strip('\nPID')
+                    worksheet_ios.write(row_ios,col_iosC,sfp.replace('"',''))
+                if 'SN' in line:
+                    worksheet_ios.write(row_ios,col_iosD,line.split(':')[1])
+                    worksheet_ios.write(row_ios,col_iosA,ip_addr)
+                    row_ios+=1
+
+
+
+#finish the script
+workbook.close()
+print ('Script is finished to run')
