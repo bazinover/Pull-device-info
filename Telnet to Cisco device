@@ -1,0 +1,72 @@
+
+import telnetlib
+import xlsxwriter
+import getpass
+import time
+
+
+# define device
+user = ''
+password = ''
+
+# Define xlsxwriter variables
+workbook = xlsxwriter.Workbook('Metropoline.xlsx')
+worksheet = workbook.add_worksheet('Dhcp')
+colA = 0
+colB = 1
+colC = 2
+row_ip = 1
+row_mac = 1
+worksheet.write('A1', 'Device name')
+worksheet.write('B1', 'Client IP')
+worksheet.write('C1', 'Client MAC')
+
+# Define file of hosts
+cpe_ip = open('C:\\Users\\alexb\\PycharmProjects\\AMZ_test\\cpe_ip.txt')
+error_ip = open('C:\\Users\\alexb\\PycharmProjects\\AMZ_test\\error_ip.txt', 'a')
+
+# Telnet and login to device
+for device_ip in cpe_ip:
+    cpe = str(device_ip.strip())
+    # Connection error handeling
+    try:
+        tn = telnetlib.Telnet(cpe)
+    except (ConnectionRefusedError):
+        error_ip.write(('connection refused by: ' + cpe))
+        error_ip.close
+        print('connection refused by: ' + cpe)
+        continue
+    tn.read_until(b'Username: ', 5)
+    tn.write((user + '\n').encode('ascii'))
+
+    tn.read_until(b'Password: ')
+    tn.write((password + '\n').encode('ascii'))
+
+    # Get hostanme details
+    hostname = str(tn.read_until(b'#', 0.5).decode('ascii'))
+    if len(hostname) < 1:
+        error_ip.write(('could not connect to: ' + cpe))
+        error_ip.close
+
+    # Get the output
+    tn.write(('terminal length 0' + '\n').encode('ascii'))
+    tn.write(('show ip dhcp binding | begin 1' + '\n').encode('ascii'))
+    output = str(tn.read_until(b'@', 3).decode('ascii'))
+    if len(output) < 1:
+        error_ip.write(('No dhcp server running on: ' + cpe))
+        error_ip.close
+
+    # Pharse the output
+    for line in output.split('\n'):
+        if '10' in line or '192' in line or '172' in line:
+            for addr in line.split():
+                if 14 > len(addr) > 6 and addr != 'Automatic' and addr != 'Infinite':
+                    worksheet.write(row_ip, colB, addr)
+                    row_ip += 1
+                if len(addr) >= 14:
+                    worksheet.write(row_mac, colC, addr)
+                    worksheet.write(row_mac, colA, hostname)
+                    row_mac += 1
+
+# finish the script
+workbook.close()
